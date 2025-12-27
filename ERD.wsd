@@ -25,6 +25,9 @@
 .return_req {
     BackgroundColor #FFDAB9
 }
+.bnpl_req {
+    BackgroundColor #E0FFF0
+}
 </style>
 
 ' --- ENTITIES ---
@@ -41,6 +44,8 @@ entity "Customer" as CUSTOMER {
     Tier
     TaxAmount <<tax_req>>
     LoyaltyPoints <<derived>> <<loyalty_req>>
+    CreditLimit <<derived>> <<bnpl_req>>
+    Debt <<derived>> <<bnpl_req>>
 }
 
 entity "Order" as ORDER {
@@ -121,6 +126,11 @@ entity "ReturnRequest" as RETURN <<return_req>> {
     DecisionDate
 }
 
+entity "RepaymentHistory" as REPAYMENT <<weak>> <<bnpl_req>> {
+    Amount
+    Date <<key>>
+    PaymentMethod
+}
 
 relationship "places" as PLACES {
 }
@@ -171,6 +181,8 @@ relationship "logs" as LOGS <<wallet_req>> {
 relationship "requests_return" as REQ_RET <<return_req>> {
 }
 
+relationship "has_repayment" as HAS_REP <<bnpl_req>> <<identifying>>{
+}
 
 CUSTOMER -1- PLACES
 PLACES =N= ORDER
@@ -208,5 +220,8 @@ LOGS =N= W_TRANS
 
 CONTAINS -1- REQ_RET
 REQ_RET =1= RETURN
+
+ORDER -1- HAS_REP
+HAS_REP =N= REPAYMENT
 
 @endchen
