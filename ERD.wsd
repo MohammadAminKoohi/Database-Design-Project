@@ -1,7 +1,16 @@
-@startchen base_case_v2
+@startchen req_1_2_3_strong_edges
 <style>
 .derived {
 FontColor Blue
+}
+.new {
+BackgroundColor LightGreen
+}
+.newreq2 {
+BackgroundColor LightYellow
+}
+.newreq3 {
+BackgroundColor LightCyan
 }
 </style>
 
@@ -32,11 +41,7 @@ entity "Product" as PRODUCT {
     Name
     Category
     SubCategory
-    SellingPrice
-    CostPrice
-    Discount
-    FinalPrice <<derived>>
-    Margin <<derived>>
+    BaseInfo
 }
 
 entity "Shipment" as SHIPMENT {
@@ -54,6 +59,20 @@ entity "Shipment" as SHIPMENT {
 }
 
 entity "Warehouse" as WAREHOUSE {
+    ID <<key>>
+    Name
+    Address
+}
+
+entity "Branch" as BRANCH <<new>> {
+    ID <<key>>
+    Name
+    Address
+    Phone
+    SalesVolume
+}
+
+entity "Manager" as MANAGER <<new>> {
     ID <<key>>
     Name
 }
@@ -75,24 +94,50 @@ relationship "reviews" as REVIEWS {
     Score
 }
 
+relationship "manages" as MANAGES <<new>> {
+}
+
+relationship "owns" as OWNS <<new>> {
+}
+
 relationship "stores" as STORES {
     Quantity
 }
 
-' Links
+relationship "offers" as OFFERS <<new>> {
+    SellingPrice
+    Discount
+    IsAvailable
+}
+
+relationship "processed_at" as PROCESSED_AT <<new>> {
+}
+
 CUSTOMER -1- PLACES
 PLACES =N= ORDER
 
 ORDER =M= CONTAINS
 CONTAINS -N- PRODUCT
 
-ORDER =1= SHIPPED_VIA
+ORDER -1- SHIPPED_VIA
 SHIPPED_VIA =1= SHIPMENT
 
 CUSTOMER -M- REVIEWS
 REVIEWS -N- PRODUCT
 
+MANAGER -1- MANAGES
+MANAGES =N= BRANCH
+
+BRANCH -1- PROCESSED_AT
+PROCESSED_AT =N= ORDER
+
+BRANCH =1= OWNS
+OWNS =N= WAREHOUSE
+
 WAREHOUSE -M- STORES
 STORES =N= PRODUCT
+
+BRANCH -M- OFFERS
+OFFERS =N= PRODUCT
 
 @endchen
