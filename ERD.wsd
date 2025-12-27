@@ -1,0 +1,98 @@
+@startchen base_case_v2
+<style>
+.derived {
+FontColor Blue
+}
+</style>
+
+' Entities
+entity "Customer" as CUSTOMER {
+    ID <<key>>
+    Name
+    Phone
+    Email
+    Age
+    Gender
+    IncomeLevel
+    Nature
+    Tier
+}
+
+entity "Order" as ORDER {
+    ID <<key>>
+    Date
+    Priority
+    ProcessStatus
+    TotalAmount <<derived>>
+    PaymentMethod
+}
+
+entity "Product" as PRODUCT {
+    ID <<key>>
+    Name
+    Category
+    SubCategory
+    SellingPrice
+    CostPrice
+    Discount
+    FinalPrice <<derived>>
+    Margin <<derived>>
+}
+
+entity "Shipment" as SHIPMENT {
+    ID <<key>>
+    TrackingCode
+    Date
+    RecipientAddress
+    City
+    ZipCode
+    Type
+    TransportMethod
+    Cost
+    PackType
+    PackSize
+}
+
+entity "Warehouse" as WAREHOUSE {
+    ID <<key>>
+    Name
+}
+
+' Relationships
+
+relationship "places" as PLACES {
+}
+
+relationship "contains" as CONTAINS {
+    Quantity
+    CalculatedItemPrice <<derived>>
+}
+
+relationship "shipped_via" as SHIPPED_VIA {
+}
+
+relationship "reviews" as REVIEWS {
+    Score
+}
+
+relationship "stores" as STORES {
+    Quantity
+}
+
+' Links
+CUSTOMER -1- PLACES
+PLACES =N= ORDER
+
+ORDER =M= CONTAINS
+CONTAINS -N- PRODUCT
+
+ORDER =1= SHIPPED_VIA
+SHIPPED_VIA =1= SHIPMENT
+
+CUSTOMER -M- REVIEWS
+REVIEWS -N- PRODUCT
+
+WAREHOUSE -M- STORES
+STORES =N= PRODUCT
+
+@endchen
