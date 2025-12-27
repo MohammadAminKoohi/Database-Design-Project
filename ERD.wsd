@@ -12,6 +12,9 @@ BackgroundColor LightYellow
 .newreq3 {
 BackgroundColor LightCyan
 }
+.tax_req {
+    BackgroundColor Yellow
+}
 </style>
 
 ' Entities
@@ -25,6 +28,7 @@ entity "Customer" as CUSTOMER {
     IncomeLevel
     Nature
     Tier
+    TaxAmount <<tax_req>>
 }
 
 entity "Order" as ORDER {
@@ -42,6 +46,7 @@ entity "Product" as PRODUCT {
     Category
     SubCategory
     BaseInfo
+    TaxAmount <<tax_req>>
 }
 
 entity "Shipment" as SHIPMENT {
@@ -119,7 +124,7 @@ PLACES =N= ORDER
 ORDER =M= CONTAINS
 CONTAINS -N- PRODUCT
 
-ORDER -1- SHIPPED_VIA
+ORDER =1= SHIPPED_VIA
 SHIPPED_VIA =1= SHIPMENT
 
 CUSTOMER -M- REVIEWS
@@ -135,9 +140,9 @@ BRANCH =1= OWNS
 OWNS =N= WAREHOUSE
 
 WAREHOUSE -M- STORES
-STORES =N= PRODUCT
+STORES -N- PRODUCT
 
 BRANCH -M- OFFERS
-OFFERS =N= PRODUCT
+OFFERS -N- PRODUCT
 
 @endchen
