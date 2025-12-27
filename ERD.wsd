@@ -1,30 +1,34 @@
-@startchen req_1_to_6_final
+@startchen DBKala_Full_ER
 !theme toy
 <style>
 .derived {
-FontColor Blue
+    FontColor Blue
 }
-.new {
-BackgroundColor LightGreen
+.new_base {
+    BackgroundColor LightGreen
 }
-.newreq2 {
-BackgroundColor LightYellow
+.tax_req {
+    BackgroundColor LightYellow
 }
-.newreq3 {
-BackgroundColor LightCyan
+.wallet_req {
+    BackgroundColor LightCyan
 }
-.newreq4 {
-BackgroundColor MistyRose
+.loyalty_req {
+    BackgroundColor MistyRose
 }
-.newreq5 {
-BackgroundColor #F0E68C
+.feedback_req {
+    BackgroundColor #F0E68C
 }
-.newreq6 {
-BackgroundColor #E6E6FA
+.supplier_req {
+    BackgroundColor #E6E6FA
+}
+.return_req {
+    BackgroundColor #FFDAB9
 }
 </style>
 
-' Entities
+' --- ENTITIES ---
+
 entity "Customer" as CUSTOMER {
     ID <<key>>
     Name
@@ -35,18 +39,17 @@ entity "Customer" as CUSTOMER {
     IncomeLevel
     Nature
     Tier
-    TaxAmount <<newreq2>>
-    LoyaltyPoints <<derived>> <<newreq4>>
+    TaxAmount <<tax_req>>
+    LoyaltyPoints <<derived>> <<loyalty_req>>
 }
 
 entity "Order" as ORDER {
     ID <<key>>
     Date
     Priority
-    ProcessStatus
     TotalAmount <<derived>>
     PaymentMethod
-    LoyaltyDiscount <<newreq4>>
+    LoyaltyDiscount <<loyalty_req>>
 }
 
 entity "Product" as PRODUCT {
@@ -55,7 +58,7 @@ entity "Product" as PRODUCT {
     Category
     SubCategory
     BaseInfo
-    TaxAmount <<newreq2>>
+    TaxAmount <<tax_req>>
 }
 
 entity "Shipment" as SHIPMENT {
@@ -78,7 +81,7 @@ entity "Warehouse" as WAREHOUSE {
     Address
 }
 
-entity "Branch" as BRANCH <<new>> {
+entity "Branch" as BRANCH <<new_base>> {
     ID <<key>>
     Name
     Address
@@ -86,30 +89,38 @@ entity "Branch" as BRANCH <<new>> {
     SalesVolume
 }
 
-entity "Manager" as MANAGER <<new>> {
+entity "Manager" as MANAGER <<new_base>> {
     ID <<key>>
     Name
 }
 
-entity "Supplier" as SUPPLIER <<newreq6>> {
+entity "Supplier" as SUPPLIER <<supplier_req>> {
     ID <<key>>
     Name
     Phone
     Address
 }
 
-entity "Wallet" as WALLET <<newreq3>> {
+entity "Wallet" as WALLET <<wallet_req>> {
     ID <<key>>
     Balance
 }
 
-entity "WalletTransaction" as W_TRANS <<weak>> <<newreq3>> {
+entity "WalletTransaction" as W_TRANS  <<wallet_req>> {
+    ID <<key>>
     Type
     Amount
-    Date <<key>>
+    Date
 }
 
-' Relationships
+entity "ReturnRequest" as RETURN <<return_req>> {
+    ID <<key>>
+    RequestDate
+    Reason
+    ReviewResult
+    DecisionDate
+}
+
 
 relationship "places" as PLACES {
 }
@@ -117,48 +128,49 @@ relationship "places" as PLACES {
 relationship "contains" as CONTAINS {
     Quantity
     CalculatedItemPrice <<derived>>
+    ItemStatus <<return_req>>
 }
 
 relationship "shipped_via" as SHIPPED_VIA {
 }
 
-' Updated Req 5: Enhanced Reviews
-relationship "reviews" as REVIEWS {
+relationship "reviews" as REVIEWS <<feedback_req>> {
     Score
-    Comment <<newreq5>>
-    Image <<newreq5>>
-    IsPublic <<newreq5>>
+    Comment <<feedback_req>>
+    Image <<feedback_req>>
+    IsPublic <<feedback_req>>
 }
 
-relationship "manages" as MANAGES <<new>> {
+relationship "manages" as MANAGES <<new_base>> {
 }
 
-relationship "owns" as OWNS <<new>> {
+relationship "owns" as OWNS <<new_base>> {
 }
 
 relationship "stores" as STORES {
     Quantity
 }
 
-relationship "supplies_offers" as OFFERS <<newreq6>> {
+relationship "offers_and_supplies" as OFFERS <<supplier_req>> {
     SellingPrice
-    SupplyPrice <<newreq6>>
-    LeadTime <<newreq6>>
+    SupplyPrice <<supplier_req>>
+    LeadTime <<supplier_req>>
     Discount
     IsAvailable
 }
 
-relationship "processed_at" as PROCESSED_AT <<new>> {
+relationship "processed_at" as PROCESSED_AT <<new_base>> {
 }
 
-' Req 3: Wallet Relationships
-relationship "has_wallet" as HAS_WALLET <<newreq3>> {
+relationship "has_wallet" as HAS_WALLET <<wallet_req>> {
 }
 
-relationship "logs" as LOGS <<identifying>> <<newreq3>> {
+relationship "logs" as LOGS <<wallet_req>> {
 }
 
-' Links
+relationship "requests_return" as REQ_RET <<return_req>> {
+}
+
 
 CUSTOMER -1- PLACES
 PLACES =N= ORDER
@@ -166,7 +178,7 @@ PLACES =N= ORDER
 ORDER =M= CONTAINS
 CONTAINS -N- PRODUCT
 
-ORDER -1- SHIPPED_VIA
+ORDER =1= SHIPPED_VIA
 SHIPPED_VIA =1= SHIPMENT
 
 CUSTOMER -M- REVIEWS
@@ -188,11 +200,13 @@ BRANCH -M- OFFERS
 OFFERS -N- PRODUCT
 OFFERS -P- SUPPLIER
 
-' Req 3 Links: Wallet
 CUSTOMER =1= HAS_WALLET
 HAS_WALLET =1= WALLET
 
 WALLET -1- LOGS
 LOGS =N= W_TRANS
+
+CONTAINS -1- REQ_RET
+REQ_RET =1= RETURN
 
 @endchen
