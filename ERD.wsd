@@ -1,4 +1,5 @@
-@startchen req_1_2_3_strong_edges
+@startchen req_1_2_3_4_5_feedback
+!theme toy
 <style>
 .derived {
 FontColor Blue
@@ -14,6 +15,9 @@ BackgroundColor LightCyan
 }
 .newreq4 {
 BackgroundColor MistyRose
+}
+.newreq5 {
+BackgroundColor #F0E68C
 }
 </style>
 
@@ -85,13 +89,12 @@ entity "Manager" as MANAGER <<new>> {
 }
 
 ' Req 3: Wallet Entities
-entity "Wallet" as WALLET <<newreq3>> <<weak>> {
+entity "Wallet" as WALLET <<newreq3>> {
     ID <<key>>
     Balance
 }
 
-entity "WalletTransaction" as W_TRANS <<newreq3>> {
-    ID <<key>>
+entity "WalletTransaction" as W_TRANS <<weak>> <<newreq3>> {
     Type
     Amount
     Date <<key>>
@@ -110,8 +113,12 @@ relationship "contains" as CONTAINS {
 relationship "shipped_via" as SHIPPED_VIA {
 }
 
+' Updated Req 5: Enhanced Reviews
 relationship "reviews" as REVIEWS {
     Score
+    Comment <<newreq5>>
+    Image <<newreq5>>
+    IsPublic <<newreq5>>
 }
 
 relationship "manages" as MANAGES <<new>> {
@@ -133,11 +140,14 @@ relationship "offers" as OFFERS <<new>> {
 relationship "processed_at" as PROCESSED_AT <<new>> {
 }
 
-relationship "has_wallet" as HAS_WALLET <<newreq3>> <<identifying>>{
+' Req 3: Wallet Relationships
+relationship "has_wallet" as HAS_WALLET <<newreq3>> {
 }
 
-relationship "logs" as LOGS <<newreq3>> {
+relationship "logs" as LOGS <<identifying>> <<newreq3>> {
 }
+
+' Links
 
 CUSTOMER -1- PLACES
 PLACES =N= ORDER
@@ -145,9 +155,10 @@ PLACES =N= ORDER
 ORDER =M= CONTAINS
 CONTAINS -N- PRODUCT
 
-ORDER =1= SHIPPED_VIA
+ORDER -1- SHIPPED_VIA
 SHIPPED_VIA =1= SHIPMENT
 
+' Customer reviews Product (Updated with Req 5 attributes)
 CUSTOMER -M- REVIEWS
 REVIEWS -N- PRODUCT
 
@@ -157,7 +168,7 @@ MANAGES =N= BRANCH
 BRANCH -1- PROCESSED_AT
 PROCESSED_AT =N= ORDER
 
-BRANCH =1= OWNS
+BRANCH -1- OWNS
 OWNS =N= WAREHOUSE
 
 WAREHOUSE -M- STORES
@@ -166,6 +177,7 @@ STORES -N- PRODUCT
 BRANCH -M- OFFERS
 OFFERS -N- PRODUCT
 
+' Req 3 Links: Wallet
 CUSTOMER =1= HAS_WALLET
 HAS_WALLET =1= WALLET
 
