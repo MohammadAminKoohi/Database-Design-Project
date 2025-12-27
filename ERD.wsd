@@ -1,4 +1,4 @@
-@startchen req_1_2_3_4_5_feedback
+@startchen req_1_to_6_final
 !theme toy
 <style>
 .derived {
@@ -18,6 +18,9 @@ BackgroundColor MistyRose
 }
 .newreq5 {
 BackgroundColor #F0E68C
+}
+.newreq6 {
+BackgroundColor #E6E6FA
 }
 </style>
 
@@ -88,7 +91,13 @@ entity "Manager" as MANAGER <<new>> {
     Name
 }
 
-' Req 3: Wallet Entities
+entity "Supplier" as SUPPLIER <<newreq6>> {
+    ID <<key>>
+    Name
+    Phone
+    Address
+}
+
 entity "Wallet" as WALLET <<newreq3>> {
     ID <<key>>
     Balance
@@ -131,8 +140,10 @@ relationship "stores" as STORES {
     Quantity
 }
 
-relationship "offers" as OFFERS <<new>> {
+relationship "supplies_offers" as OFFERS <<newreq6>> {
     SellingPrice
+    SupplyPrice <<newreq6>>
+    LeadTime <<newreq6>>
     Discount
     IsAvailable
 }
@@ -158,7 +169,6 @@ CONTAINS -N- PRODUCT
 ORDER -1- SHIPPED_VIA
 SHIPPED_VIA =1= SHIPMENT
 
-' Customer reviews Product (Updated with Req 5 attributes)
 CUSTOMER -M- REVIEWS
 REVIEWS -N- PRODUCT
 
@@ -176,6 +186,7 @@ STORES -N- PRODUCT
 
 BRANCH -M- OFFERS
 OFFERS -N- PRODUCT
+OFFERS -P- SUPPLIER
 
 ' Req 3 Links: Wallet
 CUSTOMER =1= HAS_WALLET
