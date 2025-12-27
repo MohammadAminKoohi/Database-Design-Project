@@ -26,7 +26,10 @@
     BackgroundColor #FFDAB9
 }
 .bnpl_req {
-    BackgroundColor #E0FFF0
+    BackgroundColor #E0FFFF
+}
+.json_specs {
+    BackgroundColor #DDA0DD
 }
 </style>
 
@@ -167,6 +170,7 @@ relationship "offers_and_supplies" as OFFERS <<supplier_req>> {
     LeadTime <<supplier_req>>
     Discount
     IsAvailable
+    TechnicalSpecs_JSON <<json_specs>>
 }
 
 relationship "processed_at" as PROCESSED_AT <<new_base>> {
