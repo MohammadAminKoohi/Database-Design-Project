@@ -12,8 +12,8 @@ BackgroundColor LightYellow
 .newreq3 {
 BackgroundColor LightCyan
 }
-.tax_req {
-    BackgroundColor Yellow
+.newreq4 {
+BackgroundColor MistyRose
 }
 </style>
 
@@ -28,7 +28,8 @@ entity "Customer" as CUSTOMER {
     IncomeLevel
     Nature
     Tier
-    TaxAmount <<tax_req>>
+    TaxAmount <<newreq2>>
+    LoyaltyPoints <<derived>> <<newreq4>>
 }
 
 entity "Order" as ORDER {
@@ -38,6 +39,7 @@ entity "Order" as ORDER {
     ProcessStatus
     TotalAmount <<derived>>
     PaymentMethod
+    LoyaltyDiscount <<newreq4>>
 }
 
 entity "Product" as PRODUCT {
@@ -46,7 +48,7 @@ entity "Product" as PRODUCT {
     Category
     SubCategory
     BaseInfo
-    TaxAmount <<tax_req>>
+    TaxAmount <<newreq2>>
 }
 
 entity "Shipment" as SHIPMENT {
@@ -82,7 +84,9 @@ entity "Manager" as MANAGER <<new>> {
     Name
 }
 
+' Req 3: Wallet Entities
 entity "Wallet" as WALLET <<newreq3>> <<weak>> {
+    ID <<key>>
     Balance
 }
 
