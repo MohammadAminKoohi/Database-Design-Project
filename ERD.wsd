@@ -82,6 +82,17 @@ entity "Manager" as MANAGER <<new>> {
     Name
 }
 
+entity "Wallet" as WALLET <<newreq3>> <<weak>> {
+    Balance
+}
+
+entity "WalletTransaction" as W_TRANS <<newreq3>> {
+    ID <<key>>
+    Type
+    Amount
+    Date <<key>>
+}
+
 ' Relationships
 
 relationship "places" as PLACES {
@@ -118,6 +129,12 @@ relationship "offers" as OFFERS <<new>> {
 relationship "processed_at" as PROCESSED_AT <<new>> {
 }
 
+relationship "has_wallet" as HAS_WALLET <<newreq3>> <<identifying>>{
+}
+
+relationship "logs" as LOGS <<newreq3>> {
+}
+
 CUSTOMER -1- PLACES
 PLACES =N= ORDER
 
@@ -144,5 +161,11 @@ STORES -N- PRODUCT
 
 BRANCH -M- OFFERS
 OFFERS -N- PRODUCT
+
+CUSTOMER =1= HAS_WALLET
+HAS_WALLET =1= WALLET
+
+WALLET -1- LOGS
+LOGS =N= W_TRANS
 
 @endchen
