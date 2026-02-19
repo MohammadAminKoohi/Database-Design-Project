@@ -65,11 +65,24 @@ def create_warehouse_inventory(conn):
     print("Populated WarehouseInventory")
 
 
+def _cannot_have_highest_priority(nature, income_level):
+    """Match DB trigger: corporate + low income cannot have highest priority."""
+    if nature != "corporate" or not income_level:
+        return False
+    income = str(income_level).strip()
+    if "low" in income.lower() or "کم" in income:
+        return True
+    try:
+        return float(income) < 60000
+    except (ValueError, TypeError):
+        return False
+
+
 def create_additional_orders(conn, count=500):
     """Create additional orders reusing existing customers, products, branches. Vary payment method and status."""
     cur = conn.cursor()
-    cur.execute("SELECT CustomerID FROM Customer")
-    customers = [r[0] for r in cur.fetchall()]
+    cur.execute("SELECT CustomerID, Nature, IncomeLevel FROM Customer")
+    customers = list(cur.fetchall())  # (cid, nature, income_level)
     cur.execute("SELECT BranchID FROM Branch")
     branches = [r[0] for r in cur.fetchall()]
     cur.execute("SELECT ProductID, Name FROM Product")
@@ -81,16 +94,19 @@ def create_additional_orders(conn, count=500):
 
     payments = ["credit card", "debit card", "cash", "wallet", "BNPL"]
     priorities = ["lowest", "low", "medium", "high", "highest"]
-    item_statuses = ["received", "shipped", "item procurement", "awaiting payment"]
+    priorities_no_highest = ["lowest", "low", "medium", "high"]
+    # DB trigger allows only initial statuses on INSERT: item procurement, awaiting payment, unknown
+    item_statuses = ["item procurement", "awaiting payment"]
 
     for _ in range(min(count, len(customers) * 2)):
         oid = next_oid
         next_oid += 1
-        cid = random.choice(customers)
+        cid, nature, income_level = random.choice(customers)
         bid = random.choice(branches)
-        order_date = fake.date_time_between(start_date="-2y", end_date="now")
         payment = random.choice(payments)
         priority = random.choice(priorities)
+        if priority == "highest" and _cannot_have_highest_priority(nature, income_level):
+            priority = random.choice(priorities_no_highest)
         num_items = random.randint(1, 5)
         chosen = random.sample(products, min(num_items, len(products)))
         total = Decimal("0")
@@ -106,19 +122,23 @@ def create_additional_orders(conn, count=500):
         total += ship_cost
         cur.execute(
             """INSERT INTO Order_Header (OrderID, OrderDate, Priority, TotalAmount, PaymentMethod, LoyaltyDiscount, CustomerID, BranchID)
-               VALUES (%s, %s, %s, %s, %s, 0, %s, %s) ON CONFLICT (OrderID) DO NOTHING""",
-            (oid, order_date, priority, total, payment, cid, bid),
+               VALUES (%s, CURRENT_TIMESTAMP, %s, %s, %s, 0, %s, %s) ON CONFLICT (OrderID) DO NOTHING""",
+            (oid, priority, total, payment, cid, bid),
         )
+        cur.execute("SELECT OrderDate FROM Order_Header WHERE OrderID = %s", (oid,))
+        order_date = cur.fetchone()[0]
         for oid_i, pid, qty, item_total, status in items_to_insert:
             cur.execute(
                 "INSERT INTO OrderItem (OrderID, ProductID, Quantity, CalculatedItemPrice, ItemStatus) VALUES (%s, %s, %s, %s, %s) ON CONFLICT (OrderID, ProductID) DO NOTHING",
                 (oid_i, pid, qty, item_total, status),
             )
         ship_date = order_date + timedelta(days=random.randint(1, 7))
+        # Box cannot use ground (constraint); use airmail or air freight
+        transport = random.choice(["airmail", "air freight"])
         cur.execute(
             """INSERT INTO Shipment (ShipmentID, TrackingCode, ShipDate, RecipientAddress, City, ZipCode, Type, TransportMethod, Cost, PackType, PackSize, OrderID)
-               VALUES (%s, %s, %s, %s, %s, %s, 'standard', 'ground', %s, 'box', 'medium', %s) ON CONFLICT (OrderID) DO NOTHING""",
-            (oid, f"TRK{oid:08d}", ship_date, fake.address(), fake.city(), fake.zipcode(), ship_cost, oid),
+               VALUES (%s, %s, %s, %s, %s, %s, 'standard', %s, %s, 'box', 'medium', %s) ON CONFLICT (OrderID) DO NOTHING""",
+            (oid, f"TRK{oid:08d}", ship_date, fake.address(), fake.city(), fake.zipcode(), transport, ship_cost, oid),
         )
         next_sid = max(next_sid, oid + 1)
 

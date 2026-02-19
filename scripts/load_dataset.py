@@ -80,8 +80,7 @@ def load_branch_product_suppliers(conn):
     if not path.exists():
         raise FileNotFoundError(f"Missing {path}")
 
-    managers = {}  # name -> ManagerID
-    branches = {}  # (branch_name, address) -> (BranchID, ManagerID)
+    branches = {}  # (branch_name, address) -> (BranchID, manager_name, phone)
     products = {}  # (name, cat, subcat) -> ProductID
     suppliers = {}  # name -> (SupplierID, phone, address)
     offers = []  # (BranchID, ProductID, SupplierID, supply_price, lead_time)
@@ -90,14 +89,11 @@ def load_branch_product_suppliers(conn):
         reader = csv.DictReader(f)
         for row in reader:
             mname = row["manager_name"].strip()
-            if mname not in managers:
-                managers[mname] = len(managers) + 1
-
             bname = row["branch_name"].strip()
             baddr = row["address"].strip()
             bkey = (bname, baddr)
             if bkey not in branches:
-                branches[bkey] = (len(branches) + 1, managers[mname], row["phone"].strip())
+                branches[bkey] = (len(branches) + 1, mname, row["phone"].strip())
 
             pkey = (row["product_name"].strip(), row["category"].strip(), row["sub_category"].strip())
             if pkey not in products:
@@ -116,13 +112,11 @@ def load_branch_product_suppliers(conn):
 
     cur = conn.cursor()
 
-    for name, mid in managers.items():
-        cur.execute("INSERT INTO Manager (ManagerID, Name) VALUES (%s, %s) ON CONFLICT (ManagerID) DO NOTHING", (mid, name))
-
-    for (bname, baddr), (bid, mid, phone) in branches.items():
+    for (bname, baddr), (bid, mname, phone) in branches.items():
+        cur.execute("INSERT INTO Manager (ManagerID, Name) VALUES (%s, %s) ON CONFLICT (ManagerID) DO NOTHING", (bid, mname))
         cur.execute(
             "INSERT INTO Branch (BranchID, Name, Address, Phone, ManagerID) VALUES (%s, %s, %s, %s, %s) ON CONFLICT (BranchID) DO NOTHING",
-            (bid, bname, baddr, phone or None, mid),
+            (bid, bname, baddr, phone or None, bid),
         )
 
     for (pname, cat, subcat), pid in products.items():
@@ -147,8 +141,8 @@ def load_branch_product_suppliers(conn):
 
     conn.commit()
     cur.close()
-    print(f"  Managers: {len(managers)}, Branches: {len(branches)}, Products: {len(products)}, Suppliers: {len(suppliers)}, Offers: {len(offers)}")
-    return {"managers": managers, "branches": branches, "products": products, "suppliers": suppliers, "branch_ids": [b[0] for b in branches.values()]}
+    print(f"  Managers: {len(branches)}, Branches: {len(branches)}, Products: {len(products)}, Suppliers: {len(suppliers)}, Offers: {len(offers)}")
+    return {"branches": branches, "products": products, "suppliers": suppliers, "branch_ids": [b[0] for b in branches.values()]}
 
 
 def load_products_properties(conn, products_by_name):
@@ -206,9 +200,10 @@ def load_bdbkala_full(conn, branch_ids, product_map):
             except (ValueError, KeyError):
                 continue
 
-            email = (row.get("Email") or "").strip()
-            if not email:
+            email_raw = (row.get("Email") or "").strip()
+            if not email_raw:
                 continue
+            email = email_raw.replace("@@", "@")  # Fix common typo for constraint
 
             # Customer
             cname = (row.get("Customer Name") or "").strip()
@@ -236,7 +231,7 @@ def load_bdbkala_full(conn, branch_ids, product_map):
                 qty = 1
             unit_price = Decimal(str(row.get("Unit Price", 0) or 0))
             discount = Decimal(str(row.get("Discount", 0) or 0))
-            item_price = round(unit_price * (1 - discount) * qty, 2)
+            item_price = max(Decimal("0"), round(unit_price * (1 - discount) * qty, 2))
 
             priority_raw = (row.get("Order Priority") or "Low").strip()
             priority = PRIORITY_MAP.get(priority_raw, "low")
@@ -262,6 +257,8 @@ def load_bdbkala_full(conn, branch_ids, product_map):
             transport_raw = (row.get("Ship Mode") or "").strip()
             transport = TRANSPORT_MAP.get(transport_raw, "ground")
             pack_type, pack_size = parse_packaging(row.get("Packaging", ""))
+            if pack_type == "box" and transport == "ground":
+                transport = "airmail"  # Box cannot use ground (constraint)
             ship_type = "same-day" if "Express" in (row.get("Shipping Method") or "") else "standard"
 
             if order_id not in orders:
@@ -314,16 +311,30 @@ def load_bdbkala_full(conn, branch_ids, product_map):
             (cid, cname, phone or None, email, age, gender, str(income) if income else None, nature, tier),
         )
 
+    cid_to_nature_income = {cid: (nat, inc) for _, (cid, _, _, _, _, inc, nat) in customers.items()}
+
     for oid, data in orders.items():
         total = sum(order_item_agg[(oid, pid)][1] for pid in set(p for p, _, _ in data["items"]) if (oid, pid) in order_item_agg)
         total = round(total + data["ship_cost"], 2)
+        total = max(Decimal("0"), total)  # Ensure non-negative for constraint
+        priority = data["priority"]
+        cid = data["customer_id"]
+        nat, inc = cid_to_nature_income.get(cid, (None, None))
+        if priority == "highest" and nat == "corporate" and inc is not None:
+            try:
+                inc_val = float(inc) if not isinstance(inc, (int, float)) else inc
+                if inc_val < 60000:
+                    priority = "high"
+            except (ValueError, TypeError):
+                pass
         cur.execute(
             """INSERT INTO Order_Header (OrderID, OrderDate, Priority, TotalAmount, PaymentMethod, LoyaltyDiscount, CustomerID, BranchID)
                VALUES (%s, %s, %s, %s, %s, 0, %s, %s) ON CONFLICT (OrderID) DO NOTHING""",
-            (oid, data["date"], data["priority"], total, data["payment"], data["customer_id"], data["branch_id"]),
+            (oid, data["date"], priority, total, data["payment"], cid, data["branch_id"]),
         )
 
     for (oid, pid), (qty, price) in order_item_agg.items():
+        price = max(Decimal("0"), price)  # Ensure non-negative for constraint
         cur.execute(
             """INSERT INTO OrderItem (OrderID, ProductID, Quantity, CalculatedItemPrice, ItemStatus)
                VALUES (%s, %s, %s, %s, 'received') ON CONFLICT (OrderID, ProductID) DO NOTHING""",
@@ -331,11 +342,17 @@ def load_bdbkala_full(conn, branch_ids, product_map):
         )
 
     for oid, data in orders.items():
+        cur.execute("SELECT OrderDate FROM Order_Header WHERE OrderID = %s", (oid,))
+        row = cur.fetchone()
+        order_date = row[0] if row else None
+        ship_date = data["ship_date"]
+        if order_date and ship_date and ship_date < order_date:
+            ship_date = order_date  # ShipDate must be >= OrderDate (constraint)
         tracking = f"TRK{oid:08d}"
         cur.execute(
             """INSERT INTO Shipment (ShipmentID, TrackingCode, ShipDate, RecipientAddress, City, ZipCode, Type, TransportMethod, Cost, PackType, PackSize, OrderID)
                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING""",
-            (oid, tracking, data["ship_date"], data["ship_addr"] or None, data["city"] or None, data["zip_code"] or None,
+            (oid, tracking, ship_date, data["ship_addr"] or None, data["city"] or None, data["zip_code"] or None,
              data["ship_type"], data["transport"], data["ship_cost"], data["pack_type"], data["pack_size"], oid),
         )
 
