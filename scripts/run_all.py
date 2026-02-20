@@ -53,7 +53,7 @@ def run(script_name):
 
 
 def main():
-    apply_constraints()
+    #apply_constraints()
     run("load_dataset.py")
     run("generate_extra_data.py")
     run("reconstruct_wallet.py")
