@@ -15,5 +15,5 @@ JOIN BranchSupplyOffer bso
 WHERE p.Category = $1
 GROUP BY p.SubCategory;
 
-EXPLAIN (ANALYZE, BUFFERS)
+EXPLAIN ANALYZE
 execute subcategory_profit('Clothing');

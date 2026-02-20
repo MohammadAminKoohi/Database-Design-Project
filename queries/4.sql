@@ -10,4 +10,5 @@ JOIN Product p2 ON oi2.ProductID = p2.ProductID AND p2.Category <> $1
 GROUP BY p2.Category
 HAVING COUNT(DISTINCT oi1.OrderID) >= $2;
 
+EXPLAIN ANALYZE
 execute product_dependency('Clothing', 2);
