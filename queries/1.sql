@@ -1,4 +1,8 @@
+deallocate subcategory_profit;
+
+
 PREPARE subcategory_profit AS
+
 SELECT
     p.SubCategory,
     SUM((bso.SellingPrice - bso.SupplyPrice) * oi.Quantity) /
@@ -11,4 +15,5 @@ JOIN BranchSupplyOffer bso
 WHERE p.Category = $1
 GROUP BY p.SubCategory;
 
+EXPLAIN (ANALYZE, BUFFERS)
 execute subcategory_profit('Clothing');
