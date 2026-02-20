@@ -1,20 +1,19 @@
-deallocate BNPL_credit;
+DEALLOCATE check_bnpl_eligibility;
 
-PREPARE BNPL_credit AS
-
+PREPARE check_bnpl_eligibility(int, decimal) AS
 SELECT
-    c.CustomerID,
-    c.Name AS customer_name,
-    c.CreditLimit AS bnpl_limit,
-    c.Debt AS current_debt,
-    $1::numeric AS requested_purchase,
-    (c.CreditLimit - c.Debt) AS available_credit,
+    Debt AS Current_Debt,
+    CreditLimit AS Credit_Limit,
+    $2 AS Purchase_Amount,
     CASE
-        WHEN (c.Debt + $1::numeric) <= c.CreditLimit
-        THEN 'YES'
-        ELSE 'NO'
-    END AS bnpl_eligible
-FROM Customer c
-WHERE c.CustomerID = $2;
+        WHEN (Debt + $2) <= CreditLimit THEN TRUE
+        ELSE FALSE
+    END AS Can_Pay_With_BNPL,
+    (CreditLimit - Debt) AS Remaining_Credit
+FROM
+    Customer
+WHERE
+    CustomerID = $1;
 
-execute BNPL_credit(10000, 10);
+-- give small debt money to get true
+EXECUTE check_bnpl_eligibility(1, 50000000);
