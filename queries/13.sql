@@ -1,13 +1,13 @@
-DEALLOCATE tech_specs;
+DEALLOCATE get_attribute_values;
 
-PREPARE tech_specs AS
+PREPARE get_attribute_values(text, text, text) AS
 SELECT DISTINCT
-    p.Category,
-    p.SubCategory,
-    $3 AS Attribute
-from Product as p
-WHERE TRIM(p.Category) = $1
-  AND TRIM(p.SubCategory) = $2
-ORDER BY Attribute;
+    (BaseInfo::jsonb) ->> $1 AS attribute_value
+FROM
+    Product
+WHERE
+    Category = $2
+    AND SubCategory = $3
+    AND (BaseInfo::jsonb) ->> $1 IS NOT NULL;
 
-EXECUTE tech_specs('Electronics', 'Mobile Phones', 'camera');
+EXECUTE get_attribute_values('camera', 'Electronics', 'Mobile Phones');
