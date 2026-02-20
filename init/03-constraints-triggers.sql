@@ -1,12 +1,4 @@
--- =============================================================================
--- Constraints and Triggers (محدودیت و راهانما)
--- Based on requirements + 2 additional logical constraints
--- =============================================================================
-
--- -----------------------------------------------------------------------------
--- 1. Discount 0-1, Valid Email Format
--- مقدار تخفیف بین صفر تا یک و فرمت ایمیل صحیح
--- -----------------------------------------------------------------------------
+-- 1
 
 ALTER TABLE BranchSupplyOffer DROP CONSTRAINT IF EXISTS chk_bso_discount;
 ALTER TABLE BranchSupplyOffer
@@ -24,10 +16,7 @@ ALTER TABLE Customer
   );
 
 
--- -----------------------------------------------------------------------------
--- 2. Order Date = Insert Time; Ship Date >= Order Date
--- تاریخ ثبت سفارش با زمان ثبت در پایگاه داده برابر؛ تاریخ ارسال بعد از ثبت یا همان روز
--- -----------------------------------------------------------------------------
+-- 2
 
 CREATE OR REPLACE FUNCTION fn_order_date_now()
 RETURNS TRIGGER AS $$
@@ -43,7 +32,7 @@ CREATE TRIGGER trg_order_date_now
   FOR EACH ROW
   EXECUTE FUNCTION fn_order_date_now();
 
--- Prevent updating OrderDate to past/future
+-- prevent updating OrderDate to past or future
 CREATE OR REPLACE FUNCTION fn_order_date_immutable()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -81,10 +70,7 @@ CREATE TRIGGER trg_shipment_date_check
   EXECUTE FUNCTION fn_shipment_date_check();
 
 
--- -----------------------------------------------------------------------------
--- 3. Item Status Flow: item procurement → awaiting payment → shipped → received
--- وضعیت کالا همیشه مشخص؛ مسیر: پردازش←منتظر پرداخت←ارسال←تحویل
--- -----------------------------------------------------------------------------
+-- 3
 
 CREATE OR REPLACE FUNCTION fn_order_item_status_flow()
 RETURNS TRIGGER AS $$
@@ -157,10 +143,7 @@ CREATE TRIGGER trg_order_item_status_insert
   EXECUTE FUNCTION fn_order_item_status_insert();
 
 
--- -----------------------------------------------------------------------------
--- 4. Small Business + Low Income: Priority cannot be highest
--- اولویت ارسال برای مشتریان کسبوکار کوچک با درآمد کم نمیتواند حیاتی باشد
--- -----------------------------------------------------------------------------
+-- 4
 
 CREATE OR REPLACE FUNCTION fn_order_priority_small_business()
 RETURNS TRIGGER AS $$
@@ -198,10 +181,7 @@ CREATE TRIGGER trg_order_priority_small_business
   EXECUTE FUNCTION fn_order_priority_small_business();
 
 
--- -----------------------------------------------------------------------------
--- 5. Large Envelope: no air; Box: no ground
--- پاکت بزرگ هوایی نمیشود؛ جعبه زمینی نمیشود
--- -----------------------------------------------------------------------------
+-- 5
 
 CREATE OR REPLACE FUNCTION fn_shipment_pack_transport()
 RETURNS TRIGGER AS $$
@@ -229,10 +209,7 @@ CREATE TRIGGER trg_shipment_pack_transport
   EXECUTE FUNCTION fn_shipment_pack_transport();
 
 
--- -----------------------------------------------------------------------------
--- 6. Wallet debt must not exceed customer's debt ceiling (CreditLimit)
--- میزان بدهی کیف پول کاربر نباید از سقف بدهی او بیشتر شود
--- -----------------------------------------------------------------------------
+-- 6
 
 ALTER TABLE Customer DROP CONSTRAINT IF EXISTS chk_customer_debt_limit;
 ALTER TABLE Customer
@@ -267,10 +244,7 @@ CREATE TRIGGER trg_wallet_debt_ceiling
   EXECUTE FUNCTION fn_wallet_debt_ceiling();
 
 
--- -----------------------------------------------------------------------------
--- 7. One Manager per Branch; Branch must have Manager
--- یک فرد نمیتواند رئیس بیش از یک شعبه باشد؛ شعبه بدون رئیس نباشد
--- -----------------------------------------------------------------------------
+-- 7
 
 -- Branch.ManagerID is NOT NULL (already in schema)
 -- One manager per branch: ManagerID unique per branch - actually one manager can manage one branch.
@@ -280,10 +254,7 @@ ALTER TABLE Branch DROP CONSTRAINT IF EXISTS uq_branch_manager;
 ALTER TABLE Branch ADD CONSTRAINT uq_branch_manager UNIQUE (ManagerID);
 
 
--- -----------------------------------------------------------------------------
--- 8. Branch Delete: Keep order data; Anonymize orphaned customer personal info
--- حذف شعبه: حفظ سفارشات؛ حذف اطلاعات شخصی مشتریان بدون سفارش در شعبه دیگر
--- -----------------------------------------------------------------------------
+-- 8
 
 -- Warehouse: CASCADE on branch delete (warehouses are deleted with branch)
 ALTER TABLE Warehouse DROP CONSTRAINT IF EXISTS FK_Warehouse_Branch;
@@ -319,10 +290,7 @@ CREATE TRIGGER trg_branch_delete_anonymize
   EXECUTE FUNCTION fn_branch_delete_anonymize();
 
 
--- -----------------------------------------------------------------------------
--- 9. Return Status Flow: Pending → Approved or Rejected
--- وضعیت مرجوعی: در انتظار بررسی ← تأیید/رد
--- -----------------------------------------------------------------------------
+-- 9
 
 CREATE OR REPLACE FUNCTION fn_return_request_status_flow()
 RETURNS TRIGGER AS $$
@@ -352,10 +320,7 @@ CREATE TRIGGER trg_return_request_status_flow
   EXECUTE FUNCTION fn_return_request_status_flow();
 
 
--- -----------------------------------------------------------------------------
--- 10. Review Score 1-5, Comment < 800 chars
--- امتیاز 1-5؛ متن بازخورد کمتر از 800 حرف
--- -----------------------------------------------------------------------------
+-- 10
 
 ALTER TABLE ProductReview DROP CONSTRAINT IF EXISTS chk_review_score;
 ALTER TABLE ProductReview ADD CONSTRAINT chk_review_score CHECK (Score >= 1 AND Score <= 5);
@@ -363,11 +328,6 @@ ALTER TABLE ProductReview ADD CONSTRAINT chk_review_score CHECK (Score >= 1 AND 
 ALTER TABLE ProductReview DROP CONSTRAINT IF EXISTS chk_review_comment_length;
 ALTER TABLE ProductReview
   ADD CONSTRAINT chk_review_comment_length CHECK (Comment IS NULL OR LENGTH(Comment) < 800);
-
-
--- -----------------------------------------------------------------------------
--- EXTRA 1: TotalAmount >= 0, Quantity > 0, CalculatedItemPrice >= 0
--- -----------------------------------------------------------------------------
 
 ALTER TABLE Order_Header DROP CONSTRAINT IF EXISTS chk_order_total_nonneg;
 ALTER TABLE Order_Header ADD CONSTRAINT chk_order_total_nonneg CHECK (TotalAmount IS NULL OR TotalAmount >= 0);
@@ -378,10 +338,6 @@ ALTER TABLE OrderItem ADD CONSTRAINT chk_order_item_qty CHECK (Quantity > 0);
 ALTER TABLE OrderItem DROP CONSTRAINT IF EXISTS chk_order_item_price;
 ALTER TABLE OrderItem ADD CONSTRAINT chk_order_item_price CHECK (CalculatedItemPrice IS NULL OR CalculatedItemPrice >= 0);
 
-
--- -----------------------------------------------------------------------------
--- EXTRA 2: WalletTransaction Amount non-zero (Deposit > 0, Payment < 0)
--- -----------------------------------------------------------------------------
 
 ALTER TABLE WalletTransaction DROP CONSTRAINT IF EXISTS chk_wallet_trans_amount;
 ALTER TABLE WalletTransaction
